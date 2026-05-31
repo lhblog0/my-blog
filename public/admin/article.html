@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>文章管理</title>
+    <style>
+        body{max-width:900px;margin:30px auto;padding:0 20px;}
+        table{width:100%;border-collapse:collapse;margin:20px 0;}
+        th,td{border:1px #ccc solid;padding:8px;}
+        th{background:#f5f5f5;}
+        button{margin:4px;padding:5px 10px;}
+        .link{margin-right:15px;color:#2d8cf0;text-decoration:none;}
+        .form-box{border:1px #ccc;padding:15px;margin:20px 0;border-radius:6px;}
+        input,textarea,select{width:100%;margin:8px 0;padding:10px;border:1px #ccc solid;border-radius:4px;}
+        textarea{height:150px;resize:none;}
+    </style>
+</head>
+<body>
+    <a href="index.html" class="link">← 返回后台首页</a>
+    <a href="/" class="link">← 返回博客首页</a>
+    <h3>文章管理（后台直接发布）</h3>
+
+    <!-- 后台发布文章表单 -->
+    <div class="form-box">
+        <h4>✍️ 写新文章（后台）</h4>
+        <input type="text" id="title" placeholder="文章标题">
+        <select id="categoryId"></select>
+        <textarea id="content" placeholder="文章内容"></textarea>
+        <button onclick="addArticle()">发布文章</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>ID</th><th>标题</th><th>阅读量</th><th>发布时间</th><th>操作</th></tr>
+        </thead>
+        <tbody id="artBody"></tbody>
+    </table>
+
+    <script>
+        window.onload = function(){
+            loadCats();
+            loadArt();
+        };
+
+        // 加载分类到下拉框
+        async function loadCats(){
+            const res=await fetch('/api/category/list');
+            const {data}=await res.json();
+            const sel=document.getElementById('categoryId');
+            sel.innerHTML='<option value="">请选择分类</option>';
+            data.forEach(item=>{
+                sel.innerHTML+=`<option value="${item.id}">${item.name}</option>`;
+            });
+        }
+
+        // 后台发布文章
+        async function addArticle(){
+            const title=document.getElementById('title').value.trim();
+            const content=document.getElementById('content').value.trim();
+            const categoryId=document.getElementById('categoryId').value;
+            if(!title||!content||!categoryId) return alert('请填完整！');
+
+            const res=await fetch('/api/admin/article/add',{
+                method:'POST',
+                headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:`title=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}&categoryId=${categoryId}`
+            });
+            const result=await res.json();
+            if(result.code===200){
+                alert('发布成功！');
+                document.getElementById('title').value='';
+                document.getElementById('content').value='';
+                loadArt(); // 刷新列表
+            }else{
+                alert('失败：'+result.msg);
+            }
+        }
+
+        // 加载文章列表
+        async function loadArt(){
+            const res=await fetch('/api/article/list');
+            const {data}=await res.json();
+            let html='';
+            data.forEach(item=>{
+                html += `<tr>
+                    <td>${item.id}</td>
+                    <td>${item.title}</td>
+                    <td>${item.view_count}</td>
+                    <td>${item.create_time}</td>
+                    <td>
+                        <button onclick="delArt(${item.id})">删除</button>
+                    </td>
+                </tr>`;
+            });
+            document.getElementById('artBody').innerHTML = html;
+        }
+
+        // 删除文章
+        async function delArt(id){
+            if(!confirm('确定删除？'))return;
+            await fetch('/api/article/del',{
+                method:'POST',
+                headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                body:`id=${id}`
+            });
+            loadArt();
+        }
+    </script>
+</body>
+</html>

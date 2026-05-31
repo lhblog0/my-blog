@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>归档 | 个人博客</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#3b82f6', darkBg: '#121826', darkCard: '#1e293b' } } } }
+  </script>
+  <style>html.dark{color-scheme:dark;}body{transition:0.3s;}</style>
+</head>
+<body class="bg-gray-50 dark:bg-darkBg text-gray-800 dark:text-gray-200">
+  <header class="sticky top-0 z-50 bg-white/80 dark:bg-darkCard/80 backdrop-blur shadow-sm border-b border-gray-200 dark:border-gray-700">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="/" class="text-primary font-bold">← 返回首页</a>
+      <button id="themeBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">🌙</button>
+    </div>
+  </header>
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <h2 class="text-2xl font-bold mb-6">文章归档</h2>
+    <div id="archiveList" class="space-y-4"></div>
+  </main>
+
+  <script>
+    const html = document.documentElement, themeBtn = document.getElementById('themeBtn');
+    function initTheme(){let t=localStorage.getItem('blogTheme')||'light';html.className=t;themeBtn.textContent=t==='dark'?'☀️':'🌙';}
+    themeBtn.onclick=()=>{let n=html.classList.contains('dark')?'light':'dark';html.className=n;localStorage.setItem('blogTheme',n);themeBtn.textContent=n==='dark'?'☀️':'🌙';};
+    initTheme();
+    async function loadArchive(){
+      const res=await fetch('/api/archive');
+      const {data}=await res.json();
+      const dom=document.getElementById('archiveList');
+      data.forEach(item=>{
+        dom.innerHTML+=`<div class="bg-white dark:bg-darkCard p-4 rounded-lg shadow border">${item.month} （共${item.count}篇）</div>`;
+      });
+    }
+    loadArchive();
+  </script>
+</body>
+</html>

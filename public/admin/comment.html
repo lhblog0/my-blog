@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>评论管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+        body {
+            background: #f4f5f7;
+            padding: 30px 20px;
+        }
+        .wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+        .back {
+            display: inline-block;
+            color: #2d8cf0;
+            text-decoration: none;
+            margin-bottom: 20px;
+            margin-right: 15px;
+        }
+        h3 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 20px;
+            border-left: 4px solid #2d8cf0;
+            padding-left: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ebeef5;
+            padding: 12px 10px;
+            text-align: left;
+            font-size: 14px;
+        }
+        th {
+            background-color: #fafafa;
+            color: #666;
+        }
+        td {
+            color: #333;
+        }
+        .content {
+            max-width: 380px;
+            word-break: break-all;
+        }
+        .del-btn {
+            background-color: #f56c6c;
+            color: #fff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .del-btn:hover {
+            background-color: #e05555;
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <a href="index.html" class="back">← 返回后台首页</a>
+        <a href="/" class="back">← 返回博客首页</a>
+        <h3>全部评论管理</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th width="60">ID</th>
+                    <th width="80">文章ID</th>
+                    <th width="120">评论用户</th>
+                    <th>评论内容</th>
+                    <th width="180">评论时间</th>
+                    <th width="80">操作</th>
+                </tr>
+            </thead>
+            <tbody id="commentTable">
+                <tr>
+                    <td colspan="6" align="center">数据加载中...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // 页面加载完成自动拉取评论
+        window.onload = getCommentList;
+
+        // 获取所有评论
+        async function getCommentList() {
+            const tableBody = document.getElementById('commentTable');
+            const res = await fetch('/api/comment/all');
+            const result = await res.json();
+
+            if (result.code !== 200) {
+                tableBody.innerHTML = `<tr><td colspan="6" align="center">加载失败：${result.msg}</td></tr>`;
+                return;
+            }
+
+            const list = result.data;
+            if (list.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="6" align="center">暂无任何评论</td></tr>';
+                return;
+            }
+
+            let html = '';
+            list.forEach(item => {
+                const userName = item.nickname || '游客';
+                const createTime = new Date(item.create_time).toLocaleString();
+                html += `
+                <tr>
+                    <td>${item.id}</td>
+                    <td>${item.article_id}</td>
+                    <td>${userName}</td>
+                    <td class="content">${item.content}</td>
+                    <td>${createTime}</td>
+                    <td>
+                        <button class="del-btn" onclick="deleteComment(${item.id})">删除</button>
+                    </td>
+                </tr>
+                `;
+            });
+            tableBody.innerHTML = html;
+        }
+
+        // 删除单条评论
+        async function deleteComment(id) {
+            if (!confirm('确定要删除这条评论吗？此操作不可恢复！')) {
+                return;
+            }
+            await fetch('/api/comment/del', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `id=${id}`
+            });
+            // 删除后刷新列表
+            getCommentList();
+        }
+    </script>
+</body>
+</html>

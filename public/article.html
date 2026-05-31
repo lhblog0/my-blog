@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文章详情 | 个人博客</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#3b82f6', darkBg: '#121826', darkCard: '#1e293b' } } } }
+  </script>
+  <style>
+    html.dark { color-scheme: dark; }
+    body { transition: 0.3s; }
+    #content pre { padding: 1rem; border-radius: 8px; overflow-x: auto; margin: 1rem 0; }
+    html.light #content pre { background: #f1f5f9; }
+    html.dark #content pre { background: #0f172a; }
+    #content img { max-width: 100%; border-radius: 8px; margin: 1rem 0; }
+    #content p { line-height: 1.8; margin: 0.8rem 0; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-darkBg text-gray-800 dark:text-gray-200 min-h-screen">
+  <header class="sticky top-0 z-50 bg-white/80 dark:bg-darkCard/80 backdrop-blur shadow-sm border-b border-gray-200 dark:border-gray-700">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="/" class="text-primary font-bold">← 返回首页</a>
+      <button id="themeBtn" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">🌙</button>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <div id="artBox" class="bg-white dark:bg-darkCard rounded-xl shadow p-8 mb-8 border border-gray-200 dark:border-gray-700"></div>
+    <button onclick="doLike()" class="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition mb-8">👍 点赞文章</button>
+
+    <div class="bg-white dark:bg-darkCard rounded-xl shadow p-6 border border-gray-200 dark:border-gray-700">
+      <h3 class="text-lg font-semibold mb-4">发表评论</h3>
+      <textarea id="commentContent" rows="4" placeholder="写下你的看法..." class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary resize-none"></textarea>
+      <button onclick="addComment()" class="mt-3 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition">提交评论</button>
+      <h3 class="text-lg font-semibold mt-8 mb-4">全部评论</h3>
+      <div id="commentList" class="space-y-4"></div>
+    </div>
+  </main>
+
+  <button id="backTop" class="fixed bottom-8 right-8 w-10 h-10 rounded-full bg-primary text-white shadow-lg opacity-0 invisible transition-all duration-300">↑</button>
+
+  <script>
+    const html = document.documentElement, themeBtn = document.getElementById('themeBtn');
+    function initTheme(){let t=localStorage.getItem('blogTheme')||'light';html.className=t;themeBtn.textContent=t==='dark'?'☀️':'🌙';}
+    themeBtn.onclick=()=>{let n=html.classList.contains('dark')?'light':'dark';html.className=n;localStorage.setItem('blogTheme',n);themeBtn.textContent=n==='dark'?'☀️':'🌙';};
+    initTheme();
+
+    const backTop = document.getElementById('backTop');
+    window.addEventListener('scroll',()=>{
+      window.scrollY>300?(backTop.classList.remove('opacity-0','invisible'),backTop.classList.add('opacity-100')):(backTop.classList.add('opacity-0','invisible'),backTop.classList.remove('opacity-100'));
+    });
+    backTop.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
+
+    const artId = new URLSearchParams(location.search).get('id');
+    async function loadArticle(){
+      const res=await fetch(`/api/article/detail?id=${artId}`);
+      const {data}=await res.json();
+      document.getElementById('artBox').innerHTML=`
+        <h1 class="text-3xl font-bold mb-4">${data.title}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">${data.create_time} · 阅读：${data.view_count}</p>
+        <div id="content" class="text-base">${data.html_content}</div>
+      `;
+    }
+    async function doLike(){
+      const res=await fetch('/api/article/like',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`articleId=${artId}`});
+      const {msg}=await res.json();alert(msg);
+    }
+    async function addComment(){
+      const content=document.getElementById('commentContent').value.trim();
+      if(!content)return alert('评论内容不能为空');
+      const res=await fetch('/api/comment/add',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`articleId=${artId}&content=${content}`});
+      const {msg}=await res.json();alert(msg);location.reload();
+    }
+    async function loadComment(){
+      const res=await fetch(`/api/comment/list?articleId=${artId}`);
+      const {data}=await res.json();
+      const listDom=document.getElementById('commentList');
+      data.forEach(item=>{
+        listDom.innerHTML+=`
+          <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div class="font-medium">${item.nickname||'游客'} <span class="text-xs text-gray-400 ml-2">${item.create_time}</span></div>
+            <p class="mt-2">${item.content}</p>
+          </div>
+        `;
+      });
+    }
+    loadArticle();loadComment();
+  </script>
+</body>
+</html>

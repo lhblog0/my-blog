@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人博客 | 首页</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            darkBg: '#121826',
+            darkCard: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .card-hover { @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1; }
+      .nav-link { @apply px-3 py-2 rounded-md transition-colors hover:bg-primary/10 dark:hover:bg-primary/20; }
+    }
+    html.dark { color-scheme: dark; }
+    html.dark body { @apply bg-darkBg text-gray-200; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-darkBg text-gray-800 dark:text-gray-200 min-h-screen transition-colors duration-300">
+  <header class="sticky top-0 z-50 bg-white/80 dark:bg-darkCard/80 backdrop-blur shadow-sm border-b border-gray-200 dark:border-gray-700">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+      <a href="/" class="text-2xl font-bold text-primary">我的个人博客</a>
+      <nav class="flex items-center gap-2">
+        <a href="/" class="nav-link">首页</a>
+        <a href="/category.html" class="nav-link">分类</a>
+        <a href="/archive.html" class="nav-link">归档</a>
+        <a href="/search.html" class="nav-link">搜索</a>
+        <a id="adminLink" href="/admin/" class="nav-link text-red-500 hidden">后台管理</a>
+        <button id="themeBtn" class="ml-2 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">🌙</button>
+        <div id="userMenu" class="ml-4 relative"></div>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <h2 class="text-xl mb-6 font-medium">最新文章</h2>
+    <div id="articleList" class="grid gap-6"></div>
+  </main>
+
+  <button id="backTop" class="fixed bottom-8 right-8 w-10 h-10 rounded-full bg-primary text-white shadow-lg opacity-0 invisible transition-all duration-300">↑</button>
+
+  <script>
+    // 主题切换
+    const html = document.documentElement;
+    const themeBtn = document.getElementById('themeBtn');
+    function initTheme() {
+      const theme = localStorage.getItem('blogTheme') || 'light';
+      html.className = theme;
+      themeBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+    themeBtn.addEventListener('click', () => {
+      const now = html.classList.contains('dark') ? 'light' : 'dark';
+      html.className = now;
+      localStorage.setItem('blogTheme', now);
+      themeBtn.textContent = now === 'dark' ? '☀️' : '🌙';
+    });
+    initTheme();
+
+    // 回到顶部
+    const backTop = document.getElementById('backTop');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 300) {
+        backTop.classList.remove('opacity-0','invisible');
+        backTop.classList.add('opacity-100');
+      } else {
+        backTop.classList.add('opacity-0','invisible');
+        backTop.classList.remove('opacity-100');
+      }
+    });
+    backTop.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 用户状态、退出、注销
+    const userMenu = document.getElementById('userMenu');
+    const adminLink = document.getElementById('adminLink');
+    async function loadUser() {
+      const res = await fetch('/api/user/info');
+      const { data } = await res.json();
+      if (data) {
+        userMenu.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="font-medium">${data.nickname}</span>
+            <button onclick="logout()" class="text-sm text-gray-500 hover:text-primary">退出</button>
+            <button onclick="destroyUser()" class="text-sm text-red-500 hover:text-red-600">注销账号</button>
+          </div>
+        `;
+        if (data.role === 'admin') adminLink.classList.remove('hidden');
+      } else {
+        userMenu.innerHTML = `
+          <a href="/login.html" class="nav-link">登录</a>
+          <a href="/register.html" class="nav-link">注册</a>
+        `;
+      }
+    }
+    async function logout() {
+      await fetch('/api/logout');
+      location.reload();
+    }
+    async function destroyUser() {
+      if (!confirm('⚠️ 注销会永久删除账号及所有评论，确定继续？')) return;
+      const res = await fetch('/api/user/destroy', { method: 'POST' });
+      const { msg } = await res.json();
+      alert(msg);
+      location.href = '/index.html';
+    }
+
+    // 加载文章
+    async function loadArticles() {
+      const res = await fetch('/api/article/list?page=1');
+      const { data } = await res.json();
+      const listDom = document.getElementById('articleList');
+      data.forEach(art => {
+        listDom.innerHTML += `
+          <div class="bg-white dark:bg-darkCard rounded-lg p-6 shadow card-hover border border-gray-100 dark:border-gray-700">
+            <h2 class="text-xl font-semibold mb-2">
+              <a href="/article.html?id=${art.id}" class="text-primary hover:underline">${art.title}</a>
+            </h2>
+            <div class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              ${art.create_time} · 阅读 ${art.view_count} · 点赞 ${art.like_count}
+            </div>
+            <p class="text-gray-700 dark:text-gray-300 leading-relaxed">${art.summary || '暂无摘要'}</p>
+            <a href="/article.html?id=${art.id}" class="inline-block mt-4 text-primary hover:underline">阅读全文 →</a>
+          </div>
+        `;
+      });
+    }
+
+    loadUser();
+    loadArticles();
+  </script>
+</body>
+</html>
